@@ -250,7 +250,7 @@ This is a bulk, destructive operation. Always **`dryRun` first** to review what 
 | `containerTag` | string | yes | Container tag / space to scope the operation to |
 | `dryRun` | boolean | no | When `true`, returns what *would* be forgotten without changing anything. Defaults to `false` |
 | `threshold` | number | no | Similarity floor (0–1) for candidate memories (`query` mode only). Lower casts a wider net. Defaults to `0.5` |
-| `maxForget` | number | no | Safety cap on how many memories may be forgotten in one call (1–500). Defaults to `100` |
+| `maxForget` | number | no | Safety cap for **query mode** — the most matches one call may forget (1–500). Defaults to `100`. Ignored in id mode, which forgets exactly the ids you pass (bounded only by the 500-item array limit) |
 | `reason` | string | no | Reason recorded as `forgetReason` on each forgotten memory |
 
 \* Provide either `query` or `ids`.
