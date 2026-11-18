@@ -323,6 +323,8 @@ describe("ClaudeMemoryTool path IDs", () => {
 	beforeEach(() => {
 		documentsGetMock.mockReset()
 		updateMock.mockReset().mockResolvedValue({ id: "doc", status: "queued" })
+		sdk.add.mockReset().mockResolvedValue({ id: "doc", status: "queued" })
+		sdk.delete.mockReset()
 		mockDocuments([])
 		tool = new ClaudeMemoryTool("test-api-key")
 	})
@@ -414,7 +416,7 @@ describe("ClaudeMemoryTool path IDs", () => {
 		expect(updateMock).not.toHaveBeenCalled()
 	})
 
-	it("renames onto a legacy destination in place", async () => {
+	it("refuses to rename onto an existing different file", async () => {
 		mockDocuments([
 			{
 				id: "cm_memories_s_src_d_txt",
@@ -427,6 +429,34 @@ describe("ClaudeMemoryTool path IDs", () => {
 				content: "stale",
 			},
 		])
+
+		const result = await tool.handleCommand({
+			command: "rename",
+			old_path: "/memories/src.txt",
+			new_path: "/memories/dst.txt",
+		})
+
+		expect(result.success).toBe(false)
+		expect(result.error).toBe(
+			"The destination /memories/dst.txt already exists",
+		)
+		expect(updateMock).not.toHaveBeenCalled()
+		expect(sdk.delete).not.toHaveBeenCalled()
+	})
+
+	it("renames onto a free path", async () => {
+		mockDocuments([
+			{
+				id: "cm_memories_s_src_d_txt",
+				filePath: "/memories/src.txt",
+				content: "moved",
+			},
+		])
+		updateMock.mockRejectedValue(new sdk.NotFoundError("missing"))
+		sdk.add.mockResolvedValue({
+			id: "cm_memories_s_dst_d_txt",
+			status: "queued",
+		})
 		sdk.delete.mockResolvedValue({ count: 1 })
 
 		const result = await tool.handleCommand({
@@ -436,14 +466,43 @@ describe("ClaudeMemoryTool path IDs", () => {
 		})
 
 		expect(result.success).toBe(true)
-		expect(updateMock).toHaveBeenCalledWith(
+		expect(sdk.add).toHaveBeenCalledWith(
 			expect.anything(),
-			"memories_dst_txt",
-			expect.objectContaining({ content: "moved" }),
+			expect.objectContaining({
+				id: "cm_memories_s_dst_d_txt",
+				content: "moved",
+			}),
 		)
 		expect(sdk.delete).toHaveBeenCalledWith(expect.anything(), {
 			ids: ["cm_memories_s_src_d_txt"],
 		})
+	})
+
+	it("renames in place when source and destination are the same document", async () => {
+		mockDocuments([
+			{
+				id: "memories_notes_txt",
+				filePath: FILE_PATH,
+				content: "same",
+			},
+		])
+
+		const result = await tool.handleCommand({
+			command: "rename",
+			old_path: FILE_PATH,
+			new_path: FILE_PATH,
+		})
+
+		expect(result.success).toBe(true)
+		expect(updateMock).toHaveBeenCalledWith(
+			expect.anything(),
+			"memories_notes_txt",
+			expect.objectContaining({
+				content: "same",
+				metadata: expect.objectContaining({ file_path: FILE_PATH }),
+			}),
+		)
+		expect(sdk.delete).not.toHaveBeenCalled()
 	})
 
 	it("does not write when the lookup fails with a non-404 error", async () => {
