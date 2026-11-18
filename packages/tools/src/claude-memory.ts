@@ -111,14 +111,17 @@ export class ClaudeMemoryTool {
 					}
 					return await this.create(path, command.file_text)
 				case "str_replace":
-					// new_str may be "" (deleting text) but must be present.
-					if (!command.old_str || command.new_str === undefined) {
+					if (!command.old_str) {
 						return {
 							success: false,
-							error: "old_str and new_str are required for str_replace command",
+							error: "old_str is required for str_replace command",
 						}
 					}
-					return await this.strReplace(path, command.old_str, command.new_str)
+					return await this.strReplace(
+						path,
+						command.old_str,
+						command.new_str ?? "",
+					)
 				case "insert":
 					// insert_text may be "" (inserting a blank line).
 					if (
@@ -518,9 +521,18 @@ export class ClaudeMemoryTool {
 				}
 			}
 
-			// Overwrite the destination's existing document (possibly a legacy ID) so no stale copy survives.
 			const target = await this.resolveWriteId(newPath)
 			if ("error" in target) return { success: false, error: target.error }
+
+			if (target.id !== readResult.document.documentId) {
+				const dest = await this.getFileDocument(newPath)
+				if (dest.document || dest.documentId) {
+					return {
+						success: false,
+						error: `The destination ${newPath} already exists`,
+					}
+				}
+			}
 
 			await this.writeFile(target.id, readResult.document.content, {
 				...readResult.document.metadata,

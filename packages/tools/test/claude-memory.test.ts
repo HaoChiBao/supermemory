@@ -275,7 +275,7 @@ describe("Claude Memory Tool", () => {
 		it("should handle missing parameters", async () => {
 			const commands: MemoryCommand[] = [
 				{ command: "create", path: "/memories/test.txt" }, // Missing file_text
-				{ command: "str_replace", path: "/memories/test.txt", old_str: "old" }, // Missing new_str
+				{ command: "str_replace", path: "/memories/test.txt" }, // Missing old_str
 				{ command: "insert", path: "/memories/test.txt", insert_line: 1 }, // Missing insert_text
 				{ command: "rename", path: "/memories/test.txt" }, // Missing new_path
 			]
